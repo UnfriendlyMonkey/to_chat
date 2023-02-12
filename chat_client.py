@@ -1,8 +1,7 @@
 import asyncio
 import aiofiles
 import datetime
-import argparse
-
+import configargparse
 
 
 def formatted_time():
@@ -30,30 +29,28 @@ async def tcp_echo_client(host, port, history_file):
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
+    parser = configargparse.ArgParser(
+        default_config_files=['config.txt'],
         description='''Local chat client.
         Print messages to stdout and save them to file'''
     )
-    parser.add_argument(
+    parser.add(
         '-s',
         '--host',
         nargs='?',
-        default='minechat.dvmn.org',
         help='host site to be connected to'
     )
-    parser.add_argument(
+    parser.add(
         '-p',
         '--port',
         type=int,
         nargs='?',
-        default=5000,
         help='host port to be connected to'
     )
-    parser.add_argument(
+    parser.add(
         '-y',
         '--history',
         nargs='?',
-        default='chatting.log',
         help='file to write chat history to'
     )
     args = parser.parse_args()
