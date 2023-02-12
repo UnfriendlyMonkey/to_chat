@@ -1,0 +1,5 @@
+# settings for chat_client.py
+
+host = 'minechat.dvmn.org'
+port = 5000
+history = 'chatting.log'
