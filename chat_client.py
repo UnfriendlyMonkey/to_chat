@@ -53,13 +53,15 @@ def parse_arguments():
         nargs='?',
         help='file to write chat history to'
     )
-    args = parser.parse_args()
+    args = parser.parse_known_args()
 
     return args
 
 
 def main():
-    args = parse_arguments()
+    args = parse_arguments()[0]
+    print(type(args))
+    print(args)
     host, port, history_file = args.host, args.port, args.history
     asyncio.run(tcp_echo_client(host, port, history_file))
 
