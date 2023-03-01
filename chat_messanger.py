@@ -1,9 +1,14 @@
 import asyncio
 import json
 import configargparse
+import logging
 from os import environ
 from os.path import join, dirname
 from dotenv import load_dotenv
+
+
+logger = logging.getLogger('messanger')
+logging.basicConfig(filename='logging.log', level=logging.DEBUG)
 
 
 def clean_message(message: str) -> bytes:
@@ -14,44 +19,38 @@ def clean_message(message: str) -> bytes:
 async def authorize(reader, writer, token=None):
     if not token:
         token = environ.get('TOKEN')
-    print(token)
+    # print(token)
     hash_prompt = await reader.readline()
     if hash_prompt:
         ask_for_authorization = hash_prompt.decode()
+        logger.debug(ask_for_authorization)
         print(ask_for_authorization, end='')
     if not token:
         token = input('>> ')
-    # writer.write(f'{clean_message(token)}\n\n'.encode())
+    logger.debug(token)
     writer.write(clean_message(token))
     await writer.drain()
 
     greeting = await reader.readline()
-    print(greeting)
-    print(type(greeting))
+    # print(greeting)
     greeting = json.loads(greeting)
 
     return greeting
 
 
 async def tcp_chat_messanger(host: str, port: int):
+    logger.debug(f'The Messanger have started working on {host}, {port}')
     reader, writer = await asyncio.open_connection(
         host=host, port=port
     )
     greeting = await authorize(reader, writer)
+    logger.debug(greeting)
     print(greeting)
     await reader.readline()
-    # message = input()
-    # if message:
-    #     writer.write(message.encode())
-    #     await writer.drain()
-    # greetings = await reader.readline()
-    # if greetings:
-    #     greetings = greetings.decode()
-    #     print(greetings, end='')
     while True:
         message = input('>> ')
         if message:
-            # writer.write(f'{clean_message(message)}\n\n'.encode())
+            logger.debug(message)
             writer.write(clean_message(message))
             await writer.drain()
 
