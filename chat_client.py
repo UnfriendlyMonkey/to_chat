@@ -2,6 +2,11 @@ import asyncio
 import aiofiles
 import datetime
 import configargparse
+import logging
+
+
+logger = logging.getLogger('client')
+logging.basicConfig(filename='logging.log', level=logging.DEBUG)
 
 
 def formatted_time():
@@ -16,6 +21,7 @@ async def tcp_echo_client(host, port, history_file):
     )
     async with aiofiles.open(history_file, mode='a') as log_file:
         await log_file.write(f'{formatted_time()} Установлено соединение\n')
+        logger.debug(f'Client is on at {formatted_time()} on {host}, {port}')
         while True:
             # TODO: is there another way to make a loop?
             data = await reader.readline()
@@ -23,6 +29,7 @@ async def tcp_echo_client(host, port, history_file):
             if message:
                 print(message, end='')
                 await log_file.write(f'{formatted_time()} {message}')
+                logger.debug(f'{formatted_time()} {message}')
     # TODO: Code is unreachable
     writer.close()
     await writer.wait_closed()
