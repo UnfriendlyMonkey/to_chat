@@ -43,9 +43,15 @@ async def tcp_chat_messanger(host: str, port: int):
     reader, writer = await asyncio.open_connection(
         host=host, port=port
     )
-    greeting = await authorize(reader, writer)
-    logger.debug(greeting)
-    print(greeting)
+    while True:
+        greeting = await authorize(reader, writer)
+        if greeting:
+            logger.debug(greeting)
+            print(greeting)
+            break
+        message = 'Unknown token. Please check it or sign up again'
+        print(message)
+        logger.debug(message)
     await reader.readline()
     while True:
         message = input('>> ')
