@@ -13,6 +13,7 @@ logging.basicConfig(filename='logging.log', level=logging.DEBUG)
 
 def clean_message(message: str) -> bytes:
     replace = message.replace('\\n', '')
+    logger.debug(f'{replace}\n\n'.encode())
     return f'{replace}\n\n'.encode()
 
 
@@ -38,11 +39,45 @@ async def authorize(reader, writer, token=None):
     return greeting
 
 
+async def register(reader, writer):
+    hash_prompt = await reader.readline()
+    if hash_prompt:
+        logger.debug(hash_prompt)
+    writer.write(clean_message(''))
+    await writer.drain()
+    nickname_prompt = await reader.readline()
+    if nickname_prompt:
+        nickname_prompt = nickname_prompt.decode()
+        logger.debug(nickname_prompt)
+        print(nickname_prompt, end='')
+    nickname = input()
+    logger.debug(nickname)
+    writer.write(nickname.encode())
+    await writer.drain()
+    response = await reader.readline()
+    resp_data = json.loads(response)
+    new_token = resp_data.get('account_hash', None)
+    if new_token:
+        with open(join(dirname(__file__), '.env'), 'w') as envfile:
+            envfile.write(f'TOKEN={new_token}')
+
+
 async def tcp_chat_messanger(host: str, port: int):
     logger.debug(f'The Messanger have started working on {host}, {port}')
     reader, writer = await asyncio.open_connection(
         host=host, port=port
     )
+    print('Do you want to create a new account or use the existing one?')
+    choice = input('Enter "n" to sign up or any other key to sign in: \t')
+    if choice.lower() == 'n':
+        await register(reader, writer)
+        writer.close()
+        await writer.wait_closed()
+        reader, writer = await asyncio.open_connection(
+            host=host, port=port
+        )
+    dotenv_path = join(dirname(__file__), '.env')
+    load_dotenv(dotenv_path)
     while True:
         greeting = await authorize(reader, writer)
         if greeting:
@@ -89,8 +124,6 @@ def parse_arguments():
 
 
 def main():
-    dotenv_path = join(dirname(__file__), '.env')
-    load_dotenv(dotenv_path)
     args = parse_arguments()[0]
     print(args)
     host, port = args.host, args.mport
