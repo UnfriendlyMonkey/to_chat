@@ -2,6 +2,7 @@ import asyncio
 import json
 import configargparse
 import logging
+import sys
 from os import environ
 from os.path import join, dirname
 from dotenv import load_dotenv
@@ -11,39 +12,39 @@ logger = logging.getLogger('messanger')
 logging.basicConfig(filename='logging.log', level=logging.DEBUG)
 
 
-def clean_message(message: str) -> bytes:
+def prepare_message(message: str) -> bytes:
     replace = message.replace('\\n', '')
     logger.debug(f'{replace}\n\n'.encode())
     return f'{replace}\n\n'.encode()
 
 
-async def authorize(reader, writer, token=None):
-    if not token:
-        token = environ.get('TOKEN')
-    # print(token)
+async def authorize(reader, writer, token: str) -> None:
     hash_prompt = await reader.readline()
     if hash_prompt:
         ask_for_authorization = hash_prompt.decode()
         logger.debug(ask_for_authorization)
         print(ask_for_authorization, end='')
-    if not token:
-        token = input('>> ')
-    logger.debug(token)
-    writer.write(clean_message(token))
+    writer.write(prepare_message(token))
     await writer.drain()
 
     greeting = await reader.readline()
-    # print(greeting)
+    if not greeting:
+        message = 'Unknown token. Please check it or sign up again'
+        print(message)
+        logger.debug(message)
+        sys.exit(1)
+
     greeting = json.loads(greeting)
 
-    return greeting
+    logger.debug(greeting)
+    print(greeting)
 
 
-async def register(reader, writer):
+async def register(reader, writer) -> str:
     hash_prompt = await reader.readline()
     if hash_prompt:
         logger.debug(hash_prompt)
-    writer.write(clean_message(''))
+    writer.write(prepare_message(''))
     await writer.drain()
     nickname_prompt = await reader.readline()
     if nickname_prompt:
@@ -60,6 +61,9 @@ async def register(reader, writer):
     if new_token:
         with open(join(dirname(__file__), '.env'), 'w') as envfile:
             envfile.write(f'TOKEN={new_token}')
+    nickname = resp_data.get('nickname', None)
+    print(f'Your new nickname: {nickname} and token: {new_token}')
+    return new_token
 
 
 async def tcp_chat_messanger(host: str, port: int):
@@ -67,32 +71,24 @@ async def tcp_chat_messanger(host: str, port: int):
     reader, writer = await asyncio.open_connection(
         host=host, port=port
     )
-    print('Do you want to create a new account or use the existing one?')
-    choice = input('Enter "n" to sign up or any other key to sign in: \t')
-    if choice.lower() == 'n':
-        await register(reader, writer)
+    token = environ.get('TOKEN')
+    # print(token)
+    # greeting = await authorize(reader, writer, token)
+    if not token:
+        token = await register(reader, writer)
         writer.close()
         await writer.wait_closed()
         reader, writer = await asyncio.open_connection(
             host=host, port=port
         )
-    dotenv_path = join(dirname(__file__), '.env')
-    load_dotenv(dotenv_path)
-    while True:
-        greeting = await authorize(reader, writer)
-        if greeting:
-            logger.debug(greeting)
-            print(greeting)
-            break
-        message = 'Unknown token. Please check it or sign up again'
-        print(message)
-        logger.debug(message)
+    await authorize(reader, writer, token)
+
     await reader.readline()
     while True:
         message = input('>> ')
         if message:
             logger.debug(message)
-            writer.write(clean_message(message))
+            writer.write(prepare_message(message))
             await writer.drain()
 
     writer.close()
@@ -128,6 +124,8 @@ def main():
     print(args)
     host, port = args.host, args.mport
     print(host, port)
+    dotenv_path = join(dirname(__file__), '.env')
+    load_dotenv(dotenv_path)
     asyncio.run(tcp_chat_messanger(host, port))
 
 
