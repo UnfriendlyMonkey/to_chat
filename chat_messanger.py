@@ -12,20 +12,13 @@ logger = logging.getLogger('messanger')
 logging.basicConfig(filename='logging.log', level=logging.DEBUG)
 
 
-def prepare_message(message: str) -> bytes:
-    replace = message.replace('\\n', '')
-    logger.debug(f'{replace}\n\n'.encode())
-    return f'{replace}\n\n'.encode()
-
-
-async def authorize(reader, writer, token: str) -> None:
+async def authorise(reader, writer, token: str) -> None:
     hash_prompt = await reader.readline()
     if hash_prompt:
         ask_for_authorization = hash_prompt.decode()
         logger.debug(ask_for_authorization)
         print(ask_for_authorization, end='')
-    writer.write(prepare_message(token))
-    await writer.drain()
+    submit_message(writer, token)
 
     greeting = await reader.readline()
     if not greeting:
@@ -44,17 +37,14 @@ async def register(reader, writer) -> str:
     hash_prompt = await reader.readline()
     if hash_prompt:
         logger.debug(hash_prompt)
-    writer.write(prepare_message(''))
-    await writer.drain()
+    submit_message(writer, '')
     nickname_prompt = await reader.readline()
     if nickname_prompt:
         nickname_prompt = nickname_prompt.decode()
         logger.debug(nickname_prompt)
         print(nickname_prompt, end='')
     nickname = input()
-    logger.debug(nickname)
-    writer.write(nickname.encode())
-    await writer.drain()
+    submit_message(writer, nickname)
     response = await reader.readline()
     resp_data = json.loads(response)
     new_token = resp_data.get('account_hash', None)
@@ -64,6 +54,14 @@ async def register(reader, writer) -> str:
     nickname = resp_data.get('nickname', None)
     print(f'Your new nickname: {nickname} and token: {new_token}')
     return new_token
+
+
+async def submit_message(writer, message: str) -> None:
+    logger.debug(message)
+    replace = message.replace('\\n', '')
+    replace = f'{replace}\n\n'.encode()
+    writer.write(replace)
+    await writer.drain()
 
 
 async def tcp_chat_messanger(host: str, port: int):
@@ -81,15 +79,13 @@ async def tcp_chat_messanger(host: str, port: int):
         reader, writer = await asyncio.open_connection(
             host=host, port=port
         )
-    await authorize(reader, writer, token)
+    await authorise(reader, writer, token)
 
     await reader.readline()
     while True:
         message = input('>> ')
         if message:
-            logger.debug(message)
-            writer.write(prepare_message(message))
-            await writer.drain()
+            submit_message(writer, message)
 
     writer.close()
     await writer.wait_closed()
