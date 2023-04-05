@@ -29,7 +29,7 @@ async def tcp_echo_client(host, port, history_file):
             if message:
                 print(message, end='')
                 await log_file.write(f'{formatted_time()} {message}')
-                logger.debug(f'{formatted_time()} {message}')
+                # logger.debug(f'{formatted_time()} {message}')
     # TODO: Code is unreachable
     writer.close()
     await writer.wait_closed()

@@ -9,7 +9,12 @@ from dotenv import load_dotenv
 
 
 logger = logging.getLogger('messanger')
-logging.basicConfig(filename='logging.log', level=logging.DEBUG)
+logging.basicConfig(
+    filename='logging.log',
+    level=logging.DEBUG,
+    format='%(levelname)s:%(module)s:[%(asctime)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
 
 
 async def authorise(reader, writer, token: str) -> None:
@@ -18,7 +23,7 @@ async def authorise(reader, writer, token: str) -> None:
         ask_for_authorization = hash_prompt.decode()
         logger.debug(ask_for_authorization)
         print(ask_for_authorization, end='')
-    submit_message(writer, token)
+    await submit_message(writer, token)
 
     greeting = await reader.readline()
     if not greeting:
@@ -34,18 +39,19 @@ async def authorise(reader, writer, token: str) -> None:
 
 
 async def register(reader, writer) -> str:
+    nickname = input('What nickname do you want to use?\t')
     hash_prompt = await reader.readline()
     if hash_prompt:
         logger.debug(hash_prompt)
-    submit_message(writer, '')
+    await submit_message(writer, '')
     nickname_prompt = await reader.readline()
     if nickname_prompt:
         nickname_prompt = nickname_prompt.decode()
         logger.debug(nickname_prompt)
-        print(nickname_prompt, end='')
-    nickname = input()
-    submit_message(writer, nickname)
+        print(nickname_prompt)
+    await submit_message(writer, nickname)
     response = await reader.readline()
+    logger.debug(json.loads(response))
     resp_data = json.loads(response)
     new_token = resp_data.get('account_hash', None)
     if new_token:
@@ -58,9 +64,10 @@ async def register(reader, writer) -> str:
 
 async def submit_message(writer, message: str) -> None:
     logger.debug(message)
-    replace = message.replace('\\n', '')
-    replace = f'{replace}\n\n'.encode()
-    writer.write(replace)
+    message = message.replace("\\n", "")
+    logger.debug(message)
+    end_message = f'{message}\n\n'.encode()
+    writer.write(end_message)
     await writer.drain()
 
 
@@ -70,8 +77,6 @@ async def tcp_chat_messanger(host: str, port: int):
         host=host, port=port
     )
     token = environ.get('TOKEN')
-    # print(token)
-    # greeting = await authorize(reader, writer, token)
     if not token:
         token = await register(reader, writer)
         writer.close()
@@ -85,7 +90,7 @@ async def tcp_chat_messanger(host: str, port: int):
     while True:
         message = input('>> ')
         if message:
-            submit_message(writer, message)
+            await submit_message(writer, message)
 
     writer.close()
     await writer.wait_closed()
