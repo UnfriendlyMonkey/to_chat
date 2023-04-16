@@ -38,21 +38,31 @@ async def authorise(reader, writer, token: str) -> None:
     print(greeting)
 
 
-async def register(reader, writer) -> str:
-    nickname = input('What nickname do you want to use?\t')
+async def register(reader, writer, nickname: str) -> str:
+    if not nickname:
+        nickname = input('What nickname do you want to use?\t')
     hash_prompt = await reader.readline()
-    if hash_prompt:
-        logger.debug(hash_prompt)
+    if not hash_prompt:
+        message = 'Registration went wrong. Please try again'
+        print(message)
+        logger.debug(message)
+        sys.exit(1)
+    print(hash_prompt)
+    logger.debug(hash_prompt)
     await submit_message(writer, '')
     nickname_prompt = await reader.readline()
-    if nickname_prompt:
-        nickname_prompt = nickname_prompt.decode()
-        logger.debug(nickname_prompt)
-        print(nickname_prompt)
+    if not nickname_prompt:
+        message = 'Registration went wrong. Please try again'
+        print(message)
+        logger.debug(message)
+        sys.exit(1)
+    nickname_prompt = nickname_prompt.decode()
+    logger.debug(nickname_prompt)
+    print(nickname_prompt)
     await submit_message(writer, nickname)
     response = await reader.readline()
-    logger.debug(json.loads(response))
     resp_data = json.loads(response)
+    logger.debug(resp_data)
     new_token = resp_data.get('account_hash', None)
     if new_token:
         with open(join(dirname(__file__), '.env'), 'w') as envfile:
@@ -62,8 +72,9 @@ async def register(reader, writer) -> str:
     return new_token
 
 
-async def submit_message(writer, message: str) -> None:
-    logger.debug(message)
+async def submit_message(writer, message: str = None) -> None:
+    if message is None:
+        message = input('>> ')
     message = message.replace("\\n", "")
     logger.debug(message)
     end_message = f'{message}\n\n'.encode()
@@ -71,14 +82,21 @@ async def submit_message(writer, message: str) -> None:
     await writer.drain()
 
 
-async def tcp_chat_messanger(host: str, port: int):
+async def tcp_chat_messanger(
+        message: str,
+        host: str,
+        port: int,
+        token: str,
+        name: str
+        ) -> None:
     logger.debug(f'The Messanger have started working on {host}, {port}')
     reader, writer = await asyncio.open_connection(
         host=host, port=port
     )
-    token = environ.get('TOKEN')
     if not token:
-        token = await register(reader, writer)
+        token = environ.get('TOKEN')
+    if not token:
+        token = await register(reader, writer, name)
         writer.close()
         await writer.wait_closed()
         reader, writer = await asyncio.open_connection(
@@ -87,10 +105,14 @@ async def tcp_chat_messanger(host: str, port: int):
     await authorise(reader, writer, token)
 
     await reader.readline()
+    await submit_message(writer, message)
     while True:
-        message = input('>> ')
-        if message:
-            await submit_message(writer, message)
+        try:
+            await submit_message(writer)
+        except KeyboardInterrupt:
+            print('\nGoodbye!')
+            logger.debug('Program terminated by KeyboardInterrupt')
+            break
 
     writer.close()
     await writer.wait_closed()
@@ -103,17 +125,35 @@ def parse_arguments():
         you could input you messages for them to appear in local chat'''
     )
     parser.add(
+        '-m',
+        '--message',
+        required=True,
+        help='message to send'
+    )
+    parser.add(
         '-s',
         '--host',
         nargs='?',
         help='host site to be connected to'
     )
     parser.add(
-        '-m',
+        '-o',
         '--mport',
         type=int,
         nargs='?',
-        help='host port to connect to to send messages'
+        help='host port to connect to send messages'
+    )
+    parser.add(
+        '-t',
+        '--token',
+        nargs='?',
+        help='enter your token to connect to chat'
+    )
+    parser.add(
+        '-n',
+        '--name',
+        nargs='?',
+        help='enter your preferred name'
     )
     args = parser.parse_known_args()
 
@@ -122,12 +162,12 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()[0]
-    print(args)
+    message = args.message
     host, port = args.host, args.mport
-    print(host, port)
+    token, name = args.token, args.name
     dotenv_path = join(dirname(__file__), '.env')
     load_dotenv(dotenv_path)
-    asyncio.run(tcp_chat_messanger(host, port))
+    asyncio.run(tcp_chat_messanger(message, host, port, token, name))
 
 
 if __name__ == '__main__':

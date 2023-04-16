@@ -23,14 +23,16 @@ async def tcp_echo_client(host, port, history_file):
         await log_file.write(f'{formatted_time()} Установлено соединение\n')
         logger.debug(f'Client is on at {formatted_time()} on {host}, {port}')
         while True:
-            # TODO: is there another way to make a loop?
-            data = await reader.readline()
-            message = data.decode()
-            if message:
-                print(message, end='')
-                await log_file.write(f'{formatted_time()} {message}')
-                # logger.debug(f'{formatted_time()} {message}')
-    # TODO: Code is unreachable
+            try:
+                data = await reader.readline()
+                message = data.decode()
+                if message:
+                    print(message, end='')
+                    await log_file.write(f'{formatted_time()} {message}')
+            except KeyboardInterrupt:
+                print('\nGoodbye!')
+                logger.debug('Client was closed by KeyboardInterrupt')
+                break
     writer.close()
     await writer.wait_closed()
 
@@ -67,8 +69,6 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()[0]
-    print(type(args))
-    print(args)
     host, port, history_file = args.host, args.port, args.history
     asyncio.run(tcp_echo_client(host, port, history_file))
 
