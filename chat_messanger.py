@@ -6,6 +6,8 @@ import sys
 from os import environ
 from os.path import join, dirname
 from dotenv import load_dotenv
+from asyncio import StreamReader, StreamWriter
+from argparse import Namespace
 
 
 logger = logging.getLogger('messanger')
@@ -17,7 +19,11 @@ logging.basicConfig(
 )
 
 
-async def authorise(reader, writer, token: str) -> None:
+async def authorise(
+        reader: StreamReader,
+        writer: StreamWriter,
+        token: str
+        ) -> None:
     hash_prompt = await reader.readline()
     if hash_prompt:
         ask_for_authorization = hash_prompt.decode()
@@ -38,7 +44,11 @@ async def authorise(reader, writer, token: str) -> None:
     print(greeting)
 
 
-async def register(reader, writer, nickname: str) -> str:
+async def register(
+        reader: StreamReader,
+        writer: StreamWriter,
+        nickname: str
+        ) -> str:
     if not nickname:
         nickname = input('What nickname do you want to use?\t')
     hash_prompt = await reader.readline()
@@ -72,7 +82,7 @@ async def register(reader, writer, nickname: str) -> str:
     return new_token
 
 
-async def submit_message(writer, message: str = None) -> None:
+async def submit_message(writer: StreamWriter, message: str = None) -> None:
     if message is None:
         message = input('>> ')
     message = message.replace("\\n", "")
@@ -118,7 +128,7 @@ async def tcp_chat_messanger(
     await writer.wait_closed()
 
 
-def parse_arguments():
+def parse_arguments() -> Namespace:
     parser = configargparse.ArgParser(
         default_config_files=['config.txt'],
         description='''Local chat messanger. After beeing authorized

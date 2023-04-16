@@ -3,19 +3,20 @@ import aiofiles
 import datetime
 import configargparse
 import logging
+from argparse import Namespace
 
 
 logger = logging.getLogger('client')
 logging.basicConfig(filename='logging.log', level=logging.DEBUG)
 
 
-def formatted_time():
+def formatted_time() -> str:
     now = datetime.datetime.now()
     formatted_datetime = now.strftime('[%d.%m.%y %H:%M]')
     return formatted_datetime
 
 
-async def tcp_echo_client(host, port, history_file):
+async def tcp_echo_client(host: str, port: int, history_file: str):
     reader, writer = await asyncio.open_connection(
             host=host, port=port
     )
@@ -37,7 +38,7 @@ async def tcp_echo_client(host, port, history_file):
     await writer.wait_closed()
 
 
-def parse_arguments():
+def parse_arguments() -> Namespace:
     parser = configargparse.ArgParser(
         default_config_files=['config.txt'],
         description='''Local chat client.
