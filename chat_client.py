@@ -5,6 +5,8 @@ import configargparse
 import logging
 from argparse import Namespace
 
+from utils import get_asyncio_connection
+
 
 logger = logging.getLogger('client')
 logging.basicConfig(filename='logging.log', level=logging.DEBUG)
@@ -17,25 +19,24 @@ def formatted_time() -> str:
 
 
 async def tcp_echo_client(host: str, port: int, history_file: str):
-    reader, writer = await asyncio.open_connection(
-            host=host, port=port
-    )
-    async with aiofiles.open(history_file, mode='a') as log_file:
-        await log_file.write(f'{formatted_time()} Установлено соединение\n')
-        logger.debug(f'Client is on at {formatted_time()} on {host}, {port}')
-        while True:
-            try:
-                data = await reader.readline()
-                message = data.decode()
-                if message:
-                    print(message, end='')
-                    await log_file.write(f'{formatted_time()} {message}')
-            except KeyboardInterrupt:
-                print('\nGoodbye!')
-                logger.debug('Client was closed by KeyboardInterrupt')
-                break
-    writer.close()
-    await writer.wait_closed()
+    async with get_asyncio_connection(host=host, port=port) as connection:
+        reader, _ = connection
+        async with aiofiles.open(history_file, mode='a') as log_file:
+            await log_file.write(f'{formatted_time()} Connection is set\n')
+            logger.debug(
+                f'Client is on at {formatted_time()} on {host}, {port}'
+            )
+            while True:
+                try:
+                    data = await reader.readline()
+                    message = data.decode()
+                    if message:
+                        print(message, end='')
+                        await log_file.write(f'{formatted_time()} {message}')
+                except KeyboardInterrupt:
+                    print('\nGoodbye!')
+                    logger.debug('Client was closed by KeyboardInterrupt')
+                    break
 
 
 def parse_arguments() -> Namespace:

@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from asyncio import StreamReader, StreamWriter
 from argparse import Namespace
 
+from utils import get_asyncio_connection
+
 
 logger = logging.getLogger('messanger')
 logging.basicConfig(
@@ -100,32 +102,25 @@ async def tcp_chat_messanger(
         name: str
         ) -> None:
     logger.debug(f'The Messanger have started working on {host}, {port}')
-    reader, writer = await asyncio.open_connection(
-        host=host, port=port
-    )
     if not token:
         token = environ.get('TOKEN')
     if not token:
-        token = await register(reader, writer, name)
-        writer.close()
-        await writer.wait_closed()
-        reader, writer = await asyncio.open_connection(
-            host=host, port=port
-        )
-    await authorise(reader, writer, token)
+        async with get_asyncio_connection(host=host, port=port) as connection:
+            reader, writer = connection
+            token = await register(reader, writer, name)
+    async with get_asyncio_connection(host=host, port=port) as connection:
+        reader, writer = connection
+        await authorise(reader, writer, token)
 
-    await reader.readline()
-    await submit_message(writer, message)
-    while True:
-        try:
-            await submit_message(writer)
-        except KeyboardInterrupt:
-            print('\nGoodbye!')
-            logger.debug('Program terminated by KeyboardInterrupt')
-            break
-
-    writer.close()
-    await writer.wait_closed()
+        await reader.readline()
+        await submit_message(writer, message)
+        while True:
+            try:
+                await submit_message(writer)
+            except KeyboardInterrupt:
+                print('\nGoodbye!')
+                logger.debug('Program terminated by KeyboardInterrupt')
+                break
 
 
 def parse_arguments() -> Namespace:
