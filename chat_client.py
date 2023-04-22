@@ -18,7 +18,7 @@ def formatted_time() -> str:
     return formatted_datetime
 
 
-async def tcp_echo_client(host: str, port: int, history_file: str):
+async def listen_tcp_chat(host: str, port: int, history_file: str):
     async with get_asyncio_connection(host=host, port=port) as connection:
         reader, _ = connection
         async with aiofiles.open(history_file, mode='a') as log_file:
@@ -72,7 +72,7 @@ def parse_arguments() -> Namespace:
 def main():
     args = parse_arguments()[0]
     host, port, history_file = args.host, args.port, args.history
-    asyncio.run(tcp_echo_client(host, port, history_file))
+    asyncio.run(listen_tcp_chat(host, port, history_file))
 
 
 if __name__ == '__main__':
